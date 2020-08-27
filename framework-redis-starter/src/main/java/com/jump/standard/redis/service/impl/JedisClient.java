@@ -9,10 +9,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.DirectFieldAccessor;
 import org.springframework.util.StringUtils;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 
 import redis.clients.jedis.HostAndPort;
@@ -30,6 +27,100 @@ public class JedisClient implements JedisClientInterface<JedisCluster> {
     private static final Logger LOGGER = LoggerFactory.getLogger(JedisClient.class);
 
     private JedisCluster jedisCluster;
+    /**
+     * 默认失效时间15ms
+     */
+    private final int EXPIRE_SECOND = 15/1000;
+    /**
+     * 最大等待时间 600s
+     */
+    private final int MAX_WAIT_SECOND = 600;
+    /**
+     * lua脚本：判断锁住值是否为当前线程持有，是的话解锁，不是的话解锁失败
+     */
+    private static final String REMOVE_KEY_CAS_LUA = "if" +
+        " redis.call('get', KEYS[1]) == ARGV[1]" +
+        " then" +
+        " return redis.call('del', KEYS[1])" +
+        " else" +
+        " return 2" +
+        " end";
+    private volatile String removeKeyCasLuaSha = "";
+
+    /**
+     * 锁
+     * @param key
+     * @param value
+     * @param expireSecond 锁过期时间
+     * @param waitSecond 抢锁失败等待秒数；如果为null，则抢锁失败直接返回
+     * @return
+     */
+    @Override
+    public boolean lock(String key, String value, int expireSecond, Long waitSecond){
+        if (StringUtils.isEmpty(key) || StringUtils.isEmpty(value)){
+            return false;
+        }
+
+        return getLock(key,value, expireSecond ,waitSecond);
+    }
+
+    private boolean getLock(String key, String value, int expireSecond, Long waitSecond){
+        boolean getLock = setNx(key, value, expireSecond);
+        if (getLock){
+            //TODO;开启续租线程，自动续租
+            return true;
+        }
+
+        if (waitSecond == null){
+            return false;
+        }
+        waitSecond = waitSecond > MAX_WAIT_SECOND ? MAX_WAIT_SECOND : waitSecond;
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        return getLock(key,value, expireSecond, waitSecond-1 == 0 ? null : waitSecond -1);
+    }
+
+    /**
+     * 释放锁
+     * @param key
+     * @param value
+     * @return 0释放失败；1释放成功；2锁已不是本身锁，不可释放
+     */
+    @Override
+    public String unlock(String key, String value){
+        return removeCas(key,value);
+    }
+    /**
+     * 先校验当前key值是否value，是则删除；不是直接返回false
+     * @param key
+     * @param value
+     * @return
+     */
+    private String removeCas(String key, String value){
+        if (StringUtils.isEmpty(key)) {
+            return "0";
+        }
+
+        JedisCluster connection = getConnection();
+        List<String> keys = new ArrayList<>();
+        keys.add(key);
+        List<String> argv = new ArrayList<>();
+        argv.add(value);
+        try {
+            if (StringUtils.isEmpty(removeKeyCasLuaSha) || !connection.scriptExists(removeKeyCasLuaSha, key)){
+                removeKeyCasLuaSha = connection.scriptLoad(REMOVE_KEY_CAS_LUA, key);
+            }
+            Long result =(Long) connection.evalsha(removeKeyCasLuaSha, keys, argv);
+            return String.valueOf(result);
+        }catch (Exception e){
+            LOGGER.error("removeCas error.", e);
+            return "0";
+        }
+    }
 
     @Override
     public JedisCluster getConnection() {
@@ -74,6 +165,7 @@ public class JedisClient implements JedisClientInterface<JedisCluster> {
                 LOGGER.info("set data, key={}, result={}", key, result);
                 return true;
             } catch (Exception e) {
+                LOGGER.error("sadd error.", e);
                 return false;
             }
         }
@@ -162,6 +254,7 @@ public class JedisClient implements JedisClientInterface<JedisCluster> {
             try {
                 Long result = connection.setnx(key, value);
                 LOGGER.info("set data, key={}, result={}", key, result);
+                return result == 1 ? true :false;
             } catch (Exception e) {
                 return false;
             }
@@ -179,8 +272,9 @@ public class JedisClient implements JedisClientInterface<JedisCluster> {
                 setParams.px(expire*1000);
                 String result = connection.set(key,value,setParams);
                 LOGGER.info("set data, result={}, key={}, expire={}", result, key, expire);
-                return true;
+                return "OK".equals(result) ? true :false;
             } catch (Exception e) {
+                LOGGER.error("setNx error.", e);
                 return false;
             }
         }

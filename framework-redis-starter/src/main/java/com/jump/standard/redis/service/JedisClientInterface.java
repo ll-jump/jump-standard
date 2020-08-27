@@ -87,4 +87,22 @@ public interface JedisClientInterface<K> {
     boolean sadd(String key, String... value);
 
     String spop(String key);
+
+    /**
+     * redis分布式锁
+     * @param key
+     * @param value
+     * @param expireSecond
+     * @param waitSecond
+     * @return
+     */
+    boolean lock(String key, String value, int expireSecond, Long waitSecond);
+
+    /**
+     * 释放锁
+     * @param key
+     * @param value
+     * @return
+     */
+    String unlock(String key, String value);
 }

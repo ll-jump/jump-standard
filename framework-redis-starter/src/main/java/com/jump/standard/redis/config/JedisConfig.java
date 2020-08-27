@@ -2,7 +2,6 @@ package com.jump.standard.redis.config;
 
 import com.jump.standard.redis.service.impl.JedisClient;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,7 +23,7 @@ public class JedisConfig {
     private boolean ssl;
     private Map<String, String> properties;
 
-    @Bean
+    @Bean("jedisClient")
     public JedisClient getJedisClient(){
         JedisClient jedisClient = new JedisClient();
         jedisClient.startup(server, port, password, ssl, properties);
