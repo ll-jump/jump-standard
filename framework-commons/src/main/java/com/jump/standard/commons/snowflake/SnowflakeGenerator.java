@@ -38,7 +38,7 @@ public class SnowflakeGenerator {
             if (this.lastTime - currentMillis < MAX_BACKWARD_MS) {
                 try {
                     TimeUnit.MILLISECONDS.sleep(this.lastTime - currentMillis);
-                } catch (InterruptedException var4) {
+                } catch (InterruptedException e) {
                 }
             } else {
                 this.tryGenerateKeyOnBackup(currentMillis);
@@ -60,14 +60,14 @@ public class SnowflakeGenerator {
     }
 
     private long tryGenerateKeyOnBackup(long currentMillis) {
-        Iterator var3 = workerIdLastTimeMap.entrySet().iterator();
+        Iterator iterator = workerIdLastTimeMap.entrySet().iterator();
 
         do {
-            if (!var3.hasNext()) {
+            if (!iterator.hasNext()) {
                 throw new IllegalStateException("Clock is moving backwards, current time is " + currentMillis + " milliseconds, workerId map = " + workerIdLastTimeMap);
             }
 
-            Entry<Long, Long> entry = (Entry)var3.next();
+            Entry<Long, Long> entry = (Entry)iterator.next();
             workerId = (Long)entry.getKey();
             Long tempLastTime = (Long)entry.getValue();
             this.lastTime = tempLastTime == null ? 0L : tempLastTime;
