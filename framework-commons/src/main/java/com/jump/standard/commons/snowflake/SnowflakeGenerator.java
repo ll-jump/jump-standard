@@ -67,26 +67,26 @@ public class SnowflakeGenerator {
                 throw new IllegalStateException("Clock is moving backwards, current time is " + currentMillis + " milliseconds, workerId map = " + workerIdLastTimeMap);
             }
 
-            Entry<Long, Long> entry = (Entry)iterator.next();
-            workerId = (Long)entry.getKey();
-            Long tempLastTime = (Long)entry.getValue();
+            Entry<Long, Long> entry = (Entry) iterator.next();
+            workerId = (Long) entry.getKey();
+            Long tempLastTime = (Long) entry.getValue();
             this.lastTime = tempLastTime == null ? 0L : tempLastTime;
-        } while(this.lastTime > currentMillis);
+        } while (this.lastTime > currentMillis);
 
         return this.lastTime;
     }
 
     private long waitUntilNextTime(long lastTime) {
         long time;
-        for(time = System.currentTimeMillis(); time <= lastTime; time = System.currentTimeMillis()) {
+        for (time = System.currentTimeMillis(); time <= lastTime; time = System.currentTimeMillis()) {
         }
 
         return time;
     }
 
     static {
-        for(int i = 0; (long)i <= BACKUP_COUNT; ++i) {
-            workerIdLastTimeMap.put(workerId + (long)i * WORKER_ID_MAX_VALUE, 0L);
+        for (int i = 0; (long) i <= BACKUP_COUNT; ++i) {
+            workerIdLastTimeMap.put(workerId + (long) i * WORKER_ID_MAX_VALUE, 0L);
         }
 
     }
