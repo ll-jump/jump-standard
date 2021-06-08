@@ -23,7 +23,8 @@ public class ProducerConfig extends AbstractConfig {
     public static final String RETRY_INTERVAL = "retry.interval";
 
     static {
-        CONFIG = new ConfigDef().define(RETRY_MAX_TIMES, ConfigDef.Type.INT, 0)
+        CONFIG = new ConfigDef().define(CLIENT_ID, ConfigDef.Type.STRING, "")
+                .define(RETRY_MAX_TIMES, ConfigDef.Type.INT, 0)
                 .define(RETRY_INTERVAL, ConfigDef.Type.LONG, 0L);
     }
 

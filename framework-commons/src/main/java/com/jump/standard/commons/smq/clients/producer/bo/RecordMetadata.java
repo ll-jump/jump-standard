@@ -25,4 +25,12 @@ public final class RecordMetadata {
         this.timestamp = timestamp;
     }
 
+    @Override
+    public String toString() {
+        return "RecordMetadata{" +
+                "group='" + group + '\'' +
+                ", key='" + key + '\'' +
+                ", timestamp=" + timestamp +
+                '}';
+    }
 }

@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -31,7 +32,7 @@ public class RecordAccumulator {
     /**
      * 消息队列
      */
-    private final Deque<RecordInDeque> records;
+    private final Queue<RecordInDeque> records;
     /**
      * 重试消息队列
      */
@@ -52,7 +53,7 @@ public class RecordAccumulator {
     public RecordAccumulator() {
         this.closed = false;
         this.appendInProgress = new AtomicInteger(0);
-        this.records = new ArrayDeque<>();
+        this.records = new LinkedBlockingQueue<>();
         this.retryRecords = new ArrayDeque<>();
         this.incomplete = new IncompleteRecord();
         this.lock = new ReentrantLock();
@@ -76,7 +77,7 @@ public class RecordAccumulator {
                     throw new IllegalStateException("Cannot send after the producer is closed.");
                 }
                 RecordInDeque recordInDeque = new RecordInDeque(record, recordDeal, callBack, retryMaxTimes, retryInterval, System.currentTimeMillis());
-                this.records.addLast(recordInDeque);
+                this.records.add(recordInDeque);
                 this.incomplete.add(recordInDeque);
                 this.lock.lock();
                 try {
@@ -106,8 +107,10 @@ public class RecordAccumulator {
             dealRetryRecord(true);
         }
         //处理消息
-        RecordInDeque recordInDeque = records.pollFirst();
-        dealRecord(recordInDeque);
+        RecordInDeque recordInDeque = records.poll();
+        if (recordInDeque != null) {
+            dealRecord(recordInDeque);
+        }
     }
 
     /**

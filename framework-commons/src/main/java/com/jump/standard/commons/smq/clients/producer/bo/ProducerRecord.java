@@ -28,6 +28,10 @@ public final class ProducerRecord<V> {
      */
     private final Long timestamp;
 
+    public ProducerRecord(String key, V value) {
+        this(null, key, value, System.currentTimeMillis());
+    }
+
     public ProducerRecord(String key, V value, Long timestamp) {
        this(null, key, value, timestamp);
     }
