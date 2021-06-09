@@ -89,7 +89,7 @@ public class RecordInDeque {
         } catch (RetrieableException e) {
             //如果重试次数大于最大重试次数，则处理结束，不再重试
             if (this.attempts >= this.retryMaxTimes) {
-                done(System.currentTimeMillis(), new RetryFailException(String.format("重试{}次仍然失败，重试次数已达最大重试次数{}，不可再重试", this.attempts, this.retryMaxTimes)));
+                done(System.currentTimeMillis(), new RetryFailException(String.format("重试%s次仍然失败，重试次数已达最大重试次数%s，不可再重试", this.attempts, this.retryMaxTimes)));
                 return false;
             }
             //需要重试

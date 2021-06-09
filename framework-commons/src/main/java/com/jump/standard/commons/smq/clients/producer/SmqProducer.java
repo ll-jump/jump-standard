@@ -190,8 +190,9 @@ public class SmqProducer implements Producer {
                         "This means you have incorrectly invoked close with a non-zero timeout from the producer call-back.", timeout);
             } else {
                 // Try to close gracefully.
-                if (this.sender != null)
+                if (this.sender != null) {
                     this.sender.initiateClose();
+                }
                 if (this.ioThread != null) {
                     try {
                         this.ioThread.join(unit.toMillis(timeout));
@@ -217,7 +218,7 @@ public class SmqProducer implements Producer {
             }
         }
 
-        log.debug("The smq producer has closed.");
+        log.info("The smq producer has closed.");
         if (firstException.get() != null && !swallowException) {
             throw new SmqException("Failed to close smq producer", firstException.get());
         }

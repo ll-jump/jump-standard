@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -32,31 +31,47 @@ public class RecordAccumulator {
     /**
      * 消息队列
      */
-    private final Queue<RecordInDeque> records;
+    private final Deque<RecordInDeque> records;
     /**
      * 重试消息队列
      */
     private final Deque<RecordInDeque> retryRecords;
     /**
+     * 需处理消息数量
+     */
+    private volatile AtomicInteger recordsSize;
+    /**
+     * 重试消息数量
+     */
+    private volatile AtomicInteger retrySize;
+    /**
      * 正在处理中的消息
      */
     private final IncompleteRecord incomplete;
     /**
+     * 消息处理唤醒条件
+     */
+    private final Condition dealCondition;
+    /**
      * 消息重试唤醒条件
      */
-    private Condition retryCondition;
+    private final Condition retryCondition;
     /**
      * 可重入锁
      */
-    private ReentrantLock lock;
+    private final ReentrantLock lock;
 
     public RecordAccumulator() {
         this.closed = false;
         this.appendInProgress = new AtomicInteger(0);
-        this.records = new LinkedBlockingQueue<>();
+        this.records = new ArrayDeque<>();
         this.retryRecords = new ArrayDeque<>();
         this.incomplete = new IncompleteRecord();
         this.lock = new ReentrantLock();
+        this.dealCondition = this.lock.newCondition();
+        this.retryCondition = this.lock.newCondition();
+        this.recordsSize = new AtomicInteger(0);
+        this.retrySize = new AtomicInteger(0);
     }
 
     /**
@@ -78,15 +93,26 @@ public class RecordAccumulator {
                 }
                 RecordInDeque recordInDeque = new RecordInDeque(record, recordDeal, callBack, retryMaxTimes, retryInterval, System.currentTimeMillis());
                 this.records.add(recordInDeque);
+                this.recordsSize.incrementAndGet();
+                if (this.recordsSize.get() <= 1){
+                    this.lock.lock();
+                    try {
+                        this.dealCondition.signal();
+                    }finally {
+                        this.lock.unlock();
+                    }
+                }
+
                 this.incomplete.add(recordInDeque);
-                this.lock.lock();
-                try {
-                    if (this.retryCondition != null) {
+                if (this.retrySize.get() > 0) {
+                    //如果存在重试消息
+                    this.lock.lock();
+                    try {
                         //唤醒消息重试线程
                         this.retryCondition.signal();
+                    } finally {
+                        this.lock.unlock();
                     }
-                } finally {
-                    this.lock.unlock();
                 }
 
                 return new FutureRecordMetadata(recordInDeque.producerRecord().group(), recordInDeque.producerRecord().key(), recordInDeque.producerRecord().timestamp(), recordInDeque.futureResult());
@@ -98,16 +124,34 @@ public class RecordAccumulator {
 
     /**
      * 处理消息
+     * @param close 是否关闭客户端调用
      */
-    public void deal() {
+    public void deal(boolean close) {
         //处理重试消息
         dealRetryRecord(false);
-        //如果消息队列中无消息，且重试队列中有消息，则处理重试队列消息；防止一直无消息发送，导致线程一直卡在records.pollFirst()，无法处理重试消息
+        //如果消息队列中无消息，且重试队列中有消息，则处理重试队列消息；防止一直无消息发送，导致线程一直卡在records.take()，无法处理重试消息
         while (this.records.size() <= 0 && this.retryRecords.size() > 0) {
             dealRetryRecord(true);
         }
         //处理消息
-        RecordInDeque recordInDeque = records.poll();
+        RecordInDeque recordInDeque = null;
+        this.lock.lock();
+        try {
+            recordInDeque = records.pollFirst();
+            if (recordInDeque == null && !close) {
+                try {
+                    this.dealCondition.await();
+                    recordInDeque = records.pollFirst();
+                } catch (InterruptedException e) {
+                    log.error("处理消息线程阻塞等待异常", e);
+                }
+            }
+            if (recordInDeque != null) {
+                this.recordsSize.decrementAndGet();
+            }
+        }finally {
+            this.lock.unlock();
+        }
         if (recordInDeque != null) {
             dealRecord(recordInDeque);
         }
@@ -138,7 +182,7 @@ public class RecordAccumulator {
      * @param await 是否阻塞线程
      */
     private void dealRetryRecord(boolean await) {
-        if (retryRecords.size() > 0) {
+        if (this.retrySize.get() > 0) {
             long now = System.currentTimeMillis();
             RecordInDeque recordInDeque;
             RetryState retryState;
@@ -150,6 +194,7 @@ public class RecordAccumulator {
                 if (retryState == RetryState.CAN_RETRY || retryState == RetryState.NO_OVER_LIMIT) {
                     // 可以重试 或者 已过最大重试次数，不可重试，且需要从重试队列中移除
                     recordInDeque = retryRecords.pollFirst();
+                    this.retrySize.decrementAndGet();
                 }
             }
 
@@ -159,17 +204,12 @@ public class RecordAccumulator {
                     //此处线程阻塞重试间隔剩余时间，如果消息队列中插入数据，则唤醒线程
                     long leftRetryInterval = recordInDeque.leftRetryInterval(now);
                     if (leftRetryInterval > 0) {
-                        if (this.retryCondition == null) {
-                            this.retryCondition = this.lock.newCondition();
-                        }
                         try {
                             //线程阻塞剩余重试时间间隔或消息队列中有消息加入唤醒该线程
                             retryCondition.await(leftRetryInterval, TimeUnit.MILLISECONDS);
                         } catch (InterruptedException e) {
                             log.error("重试线程阻塞等待异常", e);
                         }
-                        this.retryCondition = null;
-
                     }
                 } finally {
                     this.lock.unlock();
@@ -194,10 +234,13 @@ public class RecordAccumulator {
         if (retry) {
             //需要再次重试，重新加入重试队列
             recordInDeque.setRetry(System.currentTimeMillis());
-            retryRecords.addLast(recordInDeque);
+            this.retryRecords.addLast(recordInDeque);
+            this.retrySize.incrementAndGet();
         } else {
             //消息处理完成，从正在处理中的消息集合中移除
             this.incomplete.remove(recordInDeque);
+            //释放资源
+            recordInDeque = null;
         }
     }
 

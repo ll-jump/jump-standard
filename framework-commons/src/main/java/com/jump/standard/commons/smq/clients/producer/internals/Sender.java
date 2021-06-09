@@ -54,13 +54,13 @@ public class Sender implements Runnable {
     public void run() {
         log.info("Staring smp producer I/O thread.");
         while (running) {
-            run(System.currentTimeMillis());
+            run(false);
         }
         log.info("Beginning shutdown of smp producer I/O thread, sending remaining records.");
 
         //处理完消息队列及消息重试队列
         while (!forceClose && (this.recordAccumulator.hasUnDeal())) {
-            run(System.currentTimeMillis());
+            run(true);
         }
 
         if (forceClose) {
@@ -69,9 +69,9 @@ public class Sender implements Runnable {
         }
     }
 
-    private void run(long currentTimeMillis) {
+    private void run(boolean close) {
         try {
-            this.recordAccumulator.deal();
+            this.recordAccumulator.deal(close);
         } catch (Exception e) {
             log.error("Uncaught error in smp producer I/O thread: ", e);
         }
