@@ -74,11 +74,7 @@ public class SmqProducer implements Producer {
             this.retryInterval = config.getLong(ProducerConfig.RETRY_INTERVAL);
             this.recordAccumulator = new RecordAccumulator();
             //启动处理消息的线程
-            this.sender = new Sender(recordAccumulator,
-                    config.getInt(ProducerConfig.RETRY_MAX_TIMES),
-                    config.getLong(ProducerConfig.RETRY_INTERVAL),
-                    TimeUnit.MILLISECONDS,
-                    this.clientId);
+            this.sender = new Sender(recordAccumulator);
             String ioThreadName = "smp-producer-network-thread" + (clientId.length() > 0 ? " | " + clientId : "");
             this.ioThread = new SmqThread(ioThreadName, this.sender, true);
             this.ioThread.start();

@@ -3,8 +3,6 @@ package com.jump.standard.commons.smq.clients.producer.internals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * @author LiLin
  * @desc 消息发送组件
@@ -13,40 +11,21 @@ import java.util.concurrent.TimeUnit;
 public class Sender implements Runnable {
     private static final Logger log = LoggerFactory.getLogger(Sender.class);
 
+    /**
+     * 消息存储队列处理组件
+     */
     private final RecordAccumulator recordAccumulator;
-    /**
-     * 失败最大重试次数
-     */
-    private final int maxRetryTimes;
-    /**
-     * 失败重试间隔
-     */
-    private final long retryInterval;
-    /**
-     * 失败重试间隔时间单位
-     */
-    private final TimeUnit unit;
-    /**
-     * 客户端id
-     */
-    private final String clientId;
-
     /**
      * sender线程运行状态
      */
     private volatile boolean running;
-
     /**
      * 是否强制关闭sender线程
      */
     private volatile boolean forceClose;
 
-    public Sender(RecordAccumulator recordAccumulator, int maxRetryTimes, long retryInterval, TimeUnit unit, String clientId) {
+    public Sender(RecordAccumulator recordAccumulator) {
         this.recordAccumulator = recordAccumulator;
-        this.maxRetryTimes = maxRetryTimes;
-        this.retryInterval = retryInterval;
-        this.unit = unit;
-        this.clientId = clientId;
         this.running = true;
     }
 
