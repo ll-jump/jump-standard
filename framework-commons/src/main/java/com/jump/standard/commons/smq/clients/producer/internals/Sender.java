@@ -89,7 +89,7 @@ public class Sender implements Runnable {
     public void initiateClose() {
         this.running = false;
         this.recordAccumulator.close();
-        this.recordAccumulator.notifyDealCondition();
+        this.recordAccumulator.signalDealCondition();
     }
 
     /**

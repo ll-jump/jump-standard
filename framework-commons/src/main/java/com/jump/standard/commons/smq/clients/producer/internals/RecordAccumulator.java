@@ -172,10 +172,10 @@ public class RecordAccumulator {
     /**
      * 唤醒消息处理线程
      */
-    public void notifyDealCondition(){
+    public void signalDealCondition(){
         this.lock.lock();
         try {
-            this.dealCondition.notify();
+            this.dealCondition.signal();
         }finally {
             this.lock.unlock();
         }
