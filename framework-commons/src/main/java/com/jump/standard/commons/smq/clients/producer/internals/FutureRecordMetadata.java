@@ -30,7 +30,7 @@ public class FutureRecordMetadata implements Future<RecordMetadata> {
      */
     private final ProduceRequestResult result;
 
-    public FutureRecordMetadata(String group, String key,long timestamp, ProduceRequestResult result) {
+    public FutureRecordMetadata(String group, String key, long timestamp, ProduceRequestResult result) {
         this.group = group;
         this.key = key;
         this.timestamp = timestamp;

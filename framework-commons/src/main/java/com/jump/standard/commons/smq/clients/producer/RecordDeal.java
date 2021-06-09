@@ -11,6 +11,7 @@ import com.jump.standard.commons.smq.clients.producer.bo.RecordDealResult;
 public interface RecordDeal<V> {
     /**
      * 处理消息
+     *
      * @param producerRecord 消息
      * @return
      */

@@ -94,11 +94,13 @@ public class RecordAccumulator {
                 RecordInDeque recordInDeque = new RecordInDeque(record, recordDeal, callBack, retryMaxTimes, retryInterval, System.currentTimeMillis());
                 this.records.add(recordInDeque);
                 this.recordsSize.incrementAndGet();
-                if (this.recordsSize.get() <= 1){
+                if (this.recordsSize.get() <= 1) {
+                    //如果消息队列中消息已全部处理完成，此时发送的是第一条消息
                     this.lock.lock();
                     try {
+                        //唤醒消息处理线程
                         this.dealCondition.signal();
-                    }finally {
+                    } finally {
                         this.lock.unlock();
                     }
                 }
@@ -124,6 +126,7 @@ public class RecordAccumulator {
 
     /**
      * 处理消息
+     *
      * @param close 是否关闭客户端调用
      */
     public void deal(boolean close) {
@@ -149,7 +152,7 @@ public class RecordAccumulator {
             if (recordInDeque != null) {
                 this.recordsSize.decrementAndGet();
             }
-        }finally {
+        } finally {
             this.lock.unlock();
         }
         if (recordInDeque != null) {

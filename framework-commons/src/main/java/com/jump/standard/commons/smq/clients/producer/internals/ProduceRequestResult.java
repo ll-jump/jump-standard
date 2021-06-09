@@ -15,6 +15,7 @@ public final class ProduceRequestResult {
      * 处理完成时间戳
      */
     private long timestamp;
+
     public ProduceRequestResult() {
     }
 

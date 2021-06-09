@@ -10,6 +10,7 @@ public class Utils {
      * 获取系统的换行符
      */
     public static final String NL = System.getProperty("line.separator");
+
     /**
      * Get the ClassLoader which loaded smq.
      */

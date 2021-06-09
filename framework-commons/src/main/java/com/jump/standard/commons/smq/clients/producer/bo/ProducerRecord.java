@@ -33,7 +33,7 @@ public final class ProducerRecord<V> {
     }
 
     public ProducerRecord(String key, V value, Long timestamp) {
-       this(null, key, value, timestamp);
+        this(null, key, value, timestamp);
     }
 
     public ProducerRecord(String group, String key, V value) {
@@ -80,7 +80,7 @@ public final class ProducerRecord<V> {
         return true;
     }
 
-    public String group(){
+    public String group() {
         return this.group;
     }
 

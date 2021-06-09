@@ -2,7 +2,6 @@ package com.jump.standard.commons.smq.clients.producer;
 
 import com.jump.standard.commons.smq.clients.producer.bo.ProducerRecord;
 import com.jump.standard.commons.smq.clients.producer.bo.RecordMetadata;
-import com.jump.standard.commons.smq.clients.producer.internals.FutureRecordMetadata;
 
 import java.io.Closeable;
 import java.util.concurrent.Future;
@@ -36,12 +35,13 @@ public interface Producer extends Closeable {
     /**
      * 创建一个带回调方法的消息
      * 此方法的失败尝试配置会覆盖SmqProducer的失败尝试配置
-     * @param record 消息
-     * @param recordDeal 消息处理接口
-     * @param callBack 回调接口
+     *
+     * @param record        消息
+     * @param recordDeal    消息处理接口
+     * @param callBack      回调接口
      * @param retryMaxTimes 消息失败最大尝试次数
      * @param retryInterval 消息失败尝试间隔
-     * @param unit 尝试间隔时间单位
+     * @param unit          尝试间隔时间单位
      * @return
      */
     Future<RecordMetadata> send(ProducerRecord record, RecordDeal recordDeal, CallBack callBack, Integer retryMaxTimes, Long retryInterval, TimeUnit unit);

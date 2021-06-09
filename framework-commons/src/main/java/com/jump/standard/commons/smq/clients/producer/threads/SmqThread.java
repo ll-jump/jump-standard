@@ -8,10 +8,10 @@ import org.slf4j.LoggerFactory;
  * @desc smq线程包装类
  * @create 2021-06-07 18:34
  **/
-public class SmqThread extends Thread{
+public class SmqThread extends Thread {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    public SmqThread(final String name, Runnable runnable, boolean daemon){
+    public SmqThread(final String name, Runnable runnable, boolean daemon) {
         super(runnable, name);
         //是否守护进程
         setDaemon(daemon);

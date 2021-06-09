@@ -8,10 +8,12 @@ public enum DealResult {
     FAILED(1, "失败");
     private int code;
     private String message;
-    DealResult(int code, String message){
+
+    DealResult(int code, String message) {
         this.code = code;
         this.message = message;
     }
+
     public int getCode() {
         return code;
     }

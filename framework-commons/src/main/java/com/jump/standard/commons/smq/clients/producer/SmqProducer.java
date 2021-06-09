@@ -172,8 +172,9 @@ public class SmqProducer implements Producer {
 
     /**
      * 关闭客户端
-     * @param timeout 超时时间
-     * @param unit 时间单位
+     *
+     * @param timeout          超时时间
+     * @param unit             时间单位
      * @param swallowException 是否忽略异常
      */
     public void close(long timeout, TimeUnit unit, boolean swallowException) {
@@ -184,7 +185,7 @@ public class SmqProducer implements Producer {
         // this will keep track of the first encountered exception
         AtomicReference<Throwable> firstException = new AtomicReference<Throwable>();
         boolean invokedFromCallback = Thread.currentThread() == this.ioThread;
-        if(timeout > 0){
+        if (timeout > 0) {
             if (invokedFromCallback) {
                 log.warn("Overriding close timeout {} ms to 0 ms in order to prevent useless blocking due to self-join. " +
                         "This means you have incorrectly invoked close with a non-zero timeout from the producer call-back.", timeout);
