@@ -36,6 +36,10 @@ public final class ProducerRecord<V> {
        this(null, key, value, timestamp);
     }
 
+    public ProducerRecord(String group, String key, V value) {
+        this(group, key, value, System.currentTimeMillis());
+    }
+
     public ProducerRecord(String group, String key, V value, Long timestamp) {
         this.group = group;
         if (StringUtils.isBlank(key)) {
