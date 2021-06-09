@@ -170,6 +170,18 @@ public class RecordAccumulator {
     }
 
     /**
+     * 唤醒消息处理线程
+     */
+    public void notifyDealCondition(){
+        this.lock.lock();
+        try {
+            this.dealCondition.notify();
+        }finally {
+            this.lock.unlock();
+        }
+    }
+
+    /**
      * 将消息全部拒绝处理
      */
     private void abortRecords() {
@@ -185,11 +197,11 @@ public class RecordAccumulator {
      * @param await 是否阻塞线程
      */
     private void dealRetryRecord(boolean await) {
-        if (this.retrySize.get() > 0) {
-            long now = System.currentTimeMillis();
-            RecordInDeque recordInDeque;
-            RetryState retryState;
-            synchronized (retryRecords) {
+        RetryState retryState = null;
+        RecordInDeque recordInDeque = null;
+        long now = System.currentTimeMillis();
+        synchronized (retryRecords) {
+            if (this.retrySize.get() > 0) {
                 //存在需要重试的消息
                 recordInDeque = retryRecords.peekFirst();
                 //获取该重试消息状态
@@ -200,7 +212,6 @@ public class RecordAccumulator {
                     this.retrySize.decrementAndGet();
                 }
             }
-
             if (await && retryState == RetryState.NO_INTERVAL) {
                 this.lock.lock();
                 try {
