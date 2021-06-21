@@ -132,7 +132,7 @@ public class RecordAccumulator {
     public void deal(boolean close) {
         //处理重试消息
         dealRetryRecord(false);
-        //如果消息队列中无消息，且重试队列中有消息，则处理重试队列消息；防止一直无消息发送，导致线程一直卡在records.take()，无法处理重试消息
+        //如果消息队列中无消息，且重试队列中有消息，则处理重试队列消息；防止一直无消息发送，导致线程一直卡在dealCondition.await()，无法处理重试消息
         while (this.records.size() <= 0 && this.retryRecords.size() > 0) {
             dealRetryRecord(true);
         }
