@@ -54,6 +54,10 @@ public class SmqProducer implements Producer {
      * 重试间隔 单位ms
      */
     private final long retryInterval;
+    /**
+     * 消息处理是否强制按顺序
+     */
+    private final boolean strongInOrder;
 
     public SmqProducer(Map<String, Object> configs) {
         this(new ProducerConfig(configs));
@@ -72,9 +76,10 @@ public class SmqProducer implements Producer {
             }
             this.retryMaxTimes = config.getInt(ProducerConfig.RETRY_MAX_TIMES);
             this.retryInterval = config.getLong(ProducerConfig.RETRY_INTERVAL);
+            this.strongInOrder = config.getBoolean(ProducerConfig.STRONG_IN_ORDER);
             this.recordAccumulator = new RecordAccumulator();
             //启动处理消息的线程
-            this.sender = new Sender(recordAccumulator);
+            this.sender = new Sender(recordAccumulator, strongInOrder);
             String ioThreadName = "smp-producer-network-thread" + (clientId.length() > 0 ? " | " + clientId : "");
             this.ioThread = new SmqThread(ioThreadName, this.sender, true);
             this.ioThread.start();
@@ -132,7 +137,7 @@ public class SmqProducer implements Producer {
             retryInterval = unit.toMillis(retryInterval);
         }
         //发送消息
-        return this.recordAccumulator.append(record, recordDeal, callBack, retryMaxTimes, retryInterval);
+        return this.recordAccumulator.append(record, recordDeal, callBack, retryMaxTimes, retryInterval, this.strongInOrder);
     }
 
     /**

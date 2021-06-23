@@ -82,9 +82,10 @@ public class RecordAccumulator {
      * @param callBack      消息处理完成回调接口
      * @param retryMaxTimes 最大重试次数
      * @param retryInterval 重试间隔 单位ms
+     * @param strongInOrder 消息处理是否强制按顺序
      * @return
      */
-    public FutureRecordMetadata append(ProducerRecord record, RecordDeal recordDeal, CallBack callBack, int retryMaxTimes, long retryInterval) {
+    public FutureRecordMetadata append(ProducerRecord record, RecordDeal recordDeal, CallBack callBack, int retryMaxTimes, long retryInterval, Boolean strongInOrder) {
         appendInProgress.incrementAndGet();
         try {
             synchronized (records) {
@@ -106,17 +107,20 @@ public class RecordAccumulator {
                 }
 
                 this.incomplete.add(recordInDeque);
-                if (this.retrySize.get() > 0) {
-                    //如果存在重试消息
-                    this.lock.lock();
-                    try {
-                        //唤醒消息重试线程
-                        this.retryCondition.signal();
-                    } finally {
-                        this.lock.unlock();
+                // 如果消息不是强制顺序处理，则唤醒消息重试线程，优先处理该正常消息
+                // 如果消息为强制顺序处理，则此处有新消息追加不唤醒重试线程，而是等重试线程阻塞完毕后，再处理该正常消息
+                if (!strongInOrder) {
+                    if (this.retrySize.get() > 0) {
+                        //如果存在重试消息
+                        this.lock.lock();
+                        try {
+                            //唤醒消息重试线程
+                            this.retryCondition.signal();
+                        } finally {
+                            this.lock.unlock();
+                        }
                     }
                 }
-
                 return new FutureRecordMetadata(recordInDeque.producerRecord().group(), recordInDeque.producerRecord().key(), recordInDeque.producerRecord().timestamp(), recordInDeque.futureResult());
             }
         } finally {
@@ -128,12 +132,13 @@ public class RecordAccumulator {
      * 处理消息
      *
      * @param close 是否关闭客户端调用
+     * @param strongInOrder 消息处理是否强制按顺序
      */
-    public void deal(boolean close) {
+    public void deal(boolean close, boolean strongInOrder) {
         //处理重试消息
         dealRetryRecord(false);
-        //如果消息队列中无消息，且重试队列中有消息，则处理重试队列消息；防止一直无消息发送，导致线程一直卡在dealCondition.await()，无法处理重试消息
-        while (this.records.size() <= 0 && this.retryRecords.size() > 0) {
+        //如果(消息队列中无消息或消息处理为强制按顺序)，且重试队列中有消息，则处理重试队列消息；防止一直无消息发送，导致线程一直卡在dealCondition.await()，无法处理重试消息
+        while ((this.records.size() <= 0 || strongInOrder) && this.retryRecords.size() > 0) {
             dealRetryRecord(true);
         }
         //处理消息
@@ -172,11 +177,11 @@ public class RecordAccumulator {
     /**
      * 唤醒消息处理线程
      */
-    public void signalDealCondition(){
+    public void signalDealCondition() {
         this.lock.lock();
         try {
             this.dealCondition.signal();
-        }finally {
+        } finally {
             this.lock.unlock();
         }
     }

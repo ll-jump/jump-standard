@@ -16,6 +16,10 @@ public class Sender implements Runnable {
      */
     private final RecordAccumulator recordAccumulator;
     /**
+     * 消息处理是否强制按顺序
+     */
+    private final boolean strongInOrder;
+    /**
      * sender线程运行状态
      */
     private volatile boolean running;
@@ -24,8 +28,9 @@ public class Sender implements Runnable {
      */
     private volatile boolean forceClose;
 
-    public Sender(RecordAccumulator recordAccumulator) {
+    public Sender(RecordAccumulator recordAccumulator, boolean strongInOrder) {
         this.recordAccumulator = recordAccumulator;
+        this.strongInOrder = strongInOrder;
         this.running = true;
     }
 
@@ -50,7 +55,7 @@ public class Sender implements Runnable {
 
     private void run(boolean close) {
         try {
-            this.recordAccumulator.deal(close);
+            this.recordAccumulator.deal(close, this.strongInOrder);
         } catch (Exception e) {
             log.error("Uncaught error in smp producer I/O thread: ", e);
         }
